@@ -271,7 +271,22 @@ def main():
     
     # Print profile information
     print("\n=== Profile Information ===")
-    print(api.get_profile_info())
+    profile_info = api.get_profile_info()
+    print(f"Name: {profile_info.name}")
+    print(f"Age: {profile_info.age}")
+    print(f"Height: {profile_info.height}")
+    print(f"Location: {profile_info.location}")
+    print(f"Job: {profile_info.job}")
+    print(f"University: {profile_info.university}")
+    print(f"Hometown: {profile_info.hometown}")
+    print(f"Gender: {profile_info.gender}")
+    print(f"Relationship Type: {profile_info.relationship_type}")
+    print(f"Religion: {profile_info.religion}")
+    print(f"Politics: {profile_info.politics}")
+    if profile_info.prompts:
+        print("\nPrompts:")
+        for prompt in profile_info.prompts:
+            print(f"- {prompt}")
     print("=========================\n")
     
     # Get initial subjects
@@ -295,13 +310,30 @@ def main():
         swipe(1080 // 2, int(2400 * 0.8), 1080 // 2, int(2400 * 0.2), 500)
         time.sleep(1)  # Wait for scroll animation
         
-        # Get new UI dump
+        # Get new UI dump and update the existing API instance
         dump_path = get_ui_dump(i)
-        api = HingeAPI(dump_path)
+        api.xml_path = dump_path  # Update the XML path
+        api._update_profile_info()  # Update profile info
+        api.subject_pairs = api._parse_subjects_and_hearts()  # Update subjects
         
         # Print profile information for this scroll
         print("\n=== Profile Information ===")
-        print(api.get_profile_info())
+        profile_info = api.get_profile_info()
+        print(f"Name: {profile_info.name}")
+        print(f"Age: {profile_info.age}")
+        print(f"Height: {profile_info.height}")
+        print(f"Location: {profile_info.location}")
+        print(f"Job: {profile_info.job}")
+        print(f"University: {profile_info.university}")
+        print(f"Hometown: {profile_info.hometown}")
+        print(f"Gender: {profile_info.gender}")
+        print(f"Relationship Type: {profile_info.relationship_type}")
+        print(f"Religion: {profile_info.religion}")
+        print(f"Politics: {profile_info.politics}")
+        if profile_info.prompts:
+            print("\nPrompts:")
+            for prompt in profile_info.prompts:
+                print(f"- {prompt}")
         print("=========================\n")
         
         # Get subjects after scroll

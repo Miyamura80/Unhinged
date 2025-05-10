@@ -1,7 +1,9 @@
 import dspy
 from typing import Any
 import lxml.etree as ET
-from src.utils.adb_helpers import tap, parse_bounds, get_element_center
+from src.utils.adb_helpers import tap, parse_bounds, get_element_center, type_text, get_ui_dump
+
+import time
 
 class SubjectPair:
     subject_id: str
@@ -56,21 +58,46 @@ class HingeAPI:
                     min_dist = dist
                     closest_like = like_bounds
             if closest_like:
-                subject_pairs.append(SubjectPair(photo_desc, photo_desc, closest_like))
+                subject_id = f"{photo_desc}:{photo_bounds_str}"
+                subject_pairs.append(SubjectPair(subject_id, photo_desc, closest_like))
 
         return subject_pairs
 
     def submit_reply(self, subject_id: str, response_text: str):
-        # Find the subject pair
         for pair in self.subject_pairs:
             if pair.subject_id == subject_id:
-                # Tap the heart button
-                center = get_element_center(pair.heart_button_bounds)
-                if center:
-                    tap(*center)
-                # Optionally, type the response
-                # type_text(response_text)
-                return True
+                bounds = pair.heart_button_bounds
+                x1, y1, x2, y2 = bounds
+                # Tap the heart button (as before)
+                center = get_element_center(bounds)
+                tap(*center)
+                time.sleep(1.5)
+                # Get new UI dump after heart tap
+                get_ui_dump("window_dump_after_heart.xml")
+                tree = ET.parse("window_dump_after_heart.xml")
+                root = tree.getroot()
+                # Find the input field (EditText)
+                input_field = None
+                for node in root.iter("node"):
+                    class_name = node.get("class", "")
+                    if "EditText" in class_name:
+                        input_field = node
+                        break
+                if input_field is not None:
+                    input_bounds = parse_bounds(input_field.get("bounds"))
+                    if input_bounds:
+                        input_center = get_element_center(input_bounds)
+                        print(f"Tapping input field at: {input_center}")
+                        tap(*input_center)
+                        time.sleep(0.5)
+                        print(f"Typing response: {response_text}")
+                        type_text(response_text)
+                        return True
+                    else:
+                        print("Could not parse input field bounds.")
+                else:
+                    print("Input field not found after heart tap.")
+                return False
         return False
 
     

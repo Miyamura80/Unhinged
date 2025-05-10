@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+always use 
+
+"gemini/gemini-2.0-flash" model.

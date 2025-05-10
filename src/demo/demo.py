@@ -6,8 +6,12 @@ import pathlib
 import xml.etree.ElementTree as ET
 import re
 import os
+import glob
 from src.mobile_api.api import HingeAPI, SubjectPair
 from src.utils.adb_helpers import tap, parse_bounds, get_element_center, screenshot, get_ui_dump
+from src.algo.feature_extract import analyze_profile
+import asyncio
+from datetime import datetime
 
 
 # Ensure adb command exists
@@ -252,6 +256,9 @@ def main():
     else:
         os.makedirs("photo_dump")
 
+    # Create feature_extracted directory if it doesn't exist
+    os.makedirs("feature_extracted", exist_ok=True)
+
     # Track processed photos to avoid duplicates
     processed_photo_bounds = set()
 
@@ -351,6 +358,61 @@ def main():
                         processed_photo_bounds.add(bounds)
     
     print(f"\nFinished scanning for subjects. Captured {len(processed_photo_bounds)} unique photos.")
+
+    # Run feature extraction on captured photos
+    print("\nRunning feature extraction on captured photos...")
+    profile_photos = sorted(glob.glob("photo_dump/photo_*.png"))
+    
+    if profile_photos:
+        # Run feature extraction
+        profile = asyncio.run(analyze_profile(profile_images=profile_photos, profile_info=profile_info))
+        
+        # Generate timestamp for the output file
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"feature_extracted/profile_analysis_{timestamp}.txt"
+        
+        # Write analysis results to file
+        with open(output_file, "w") as f:
+            f.write("=== Profile Analysis Results ===\n")
+            f.write(f"Name: {profile.name}\n")
+            f.write(f"Age: {profile.age}\n")
+            f.write(f"Location: {profile.location}\n")
+            f.write(f"Bio: {profile.bio}\n\n")
+            
+            f.write("=== Photo Analysis ===\n")
+            for i, photo in enumerate(profile.photos, 1):
+                f.write(f"\nPhoto {i}:\n")
+                f.write(f"Location: {photo.location_type}\n")
+                f.write(f"Style: {photo.style}\n")
+                f.write(f"Activities: {', '.join(photo.activities)}\n")
+                f.write("Physical Attributes:\n")
+                f.write(f"  Has Freckles: {photo.has_freckles}\n")
+                f.write(f"  Hair Color: {photo.hair_color}\n")
+                f.write(f"  Has Piercings: {photo.has_piercings}\n")
+                f.write(f"  Makeup Level: {photo.makeup_level}\n")
+            
+            f.write("\n=== Education ===\n")
+            for edu in profile.education:
+                f.write(f"Institution: {edu.institution}\n")
+                if edu.degree:
+                    f.write(f"Degree: {edu.degree}\n")
+                if edu.field:
+                    f.write(f"Field: {edu.field}\n")
+            
+            f.write("\n=== Lifestyle ===\n")
+            f.write(f"Party Frequency: {profile.party_frequency}\n")
+            f.write(f"Drug Usage: {profile.drug_usage}\n")
+            f.write(f"Dating Style: {profile.dating_style}\n")
+            f.write(f"Lifestyle: {profile.lifestyle}\n")
+            
+            f.write("\n=== Inferred Information ===\n")
+            f.write(f"Inferred Interests: {', '.join(profile.inferred_interests)}\n")
+            f.write(f"Inferred Personality Traits: {', '.join(profile.inferred_personality_traits)}\n")
+        
+        print(f"Feature extraction results saved to: {output_file}")
+    else:
+        print("No photos were captured for feature extraction.")
+    
     print("✅ Demo started.")
 
 if __name__ == "__main__":

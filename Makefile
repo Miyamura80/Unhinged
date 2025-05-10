@@ -70,6 +70,21 @@ all: update_python_dep setup_githooks
 	@$(PYTHON) main.py
 	@echo "$(GREEN)✅ Main application run completed.$(RESET)"
 
+########################################################
+# Demo
+########################################################
+
+show-mobile-screen:
+	@echo "$(YELLOW)🏁Showing mobile screen...$(RESET)"
+	adb exec-out screenrecord --output-format=h264 - | \
+	ffplay -framerate 60 -probesize 32 -x 480 -y 960 -sync video -
+
+
+demo:
+	@echo "$(YELLOW)🏁Starting demo...$(RESET)"
+	@$(PYTHON) -m src.demo.demo
+	@echo "$(GREEN)✅ Demo started.$(RESET)"
+
 
 ########################################################
 # Run Tests

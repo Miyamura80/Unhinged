@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Running a Python File
+
+`rye run python -m path_to.python_file.python_file_name` (<-- Importantly without the `.py` file extension)
+
+## Running Tests (Pytest)
+
+Run all tests in the file:
+`rye run pytest path/to/pytest/file.py`
+

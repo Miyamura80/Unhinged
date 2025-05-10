@@ -118,6 +118,8 @@ litellm==1.68.2
     # via python-template
 loguru==0.7.3
     # via python-template
+lxml==5.4.0
+    # via python-template
 magicattr==0.1.6
     # via dspy
 mako==1.3.10

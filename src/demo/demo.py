@@ -263,11 +263,16 @@ def main():
         width = x2 - x1
         height = y2 - y1
         # Skip photos that are too wide relative to their height (aspect ratio > 3)
-        return width / height <= 2.5 if height > 0 else False
+        return width / height <= 1.5 if height > 0 else False
 
     # Initialize API with first dump
     dump_path = get_ui_dump(0)
     api = HingeAPI(dump_path)
+    
+    # Print profile information
+    print("\n=== Profile Information ===")
+    print(api.get_profile_info())
+    print("=========================\n")
     
     # Get initial subjects
     subjects = api.get_all_subjects()
@@ -293,6 +298,11 @@ def main():
         # Get new UI dump
         dump_path = get_ui_dump(i)
         api = HingeAPI(dump_path)
+        
+        # Print profile information for this scroll
+        print("\n=== Profile Information ===")
+        print(api.get_profile_info())
+        print("=========================\n")
         
         # Get subjects after scroll
         subjects = api.get_all_subjects()

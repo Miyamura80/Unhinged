@@ -7,6 +7,65 @@ import os
 import time
 from datetime import datetime
 
+class ProfileInfo:
+    """Class to hold profile information that is unique to the current page."""
+    name: str
+    age: Optional[int]
+    location: Optional[str]
+    university: Optional[str]
+    hometown: Optional[str]
+    relationship_type: Optional[str]
+    gender: Optional[str]
+    height: Optional[str]
+    job: Optional[str]
+    religion: Optional[str]
+    politics: Optional[str]
+    prompts: list[str]  # Store prompts and their responses
+
+    def __init__(self):
+        self.name = ""
+        self.age = None
+        self.location = None
+        self.university = None
+        self.hometown = None
+        self.relationship_type = None
+        self.gender = None
+        self.height = None
+        self.job = None
+        self.religion = None
+        self.politics = None
+        self.prompts = []
+
+    def __str__(self):
+        info_parts = []
+        if self.name:
+            info_parts.append(f"Name: {self.name}")
+        if self.age:
+            info_parts.append(f"Age: {self.age}")
+        if self.height:
+            info_parts.append(f"Height: {self.height}")
+        if self.location:
+            info_parts.append(f"Location: {self.location}")
+        if self.job:
+            info_parts.append(f"Job: {self.job}")
+        if self.university:
+            info_parts.append(f"University: {self.university}")
+        if self.hometown:
+            info_parts.append(f"Hometown: {self.hometown}")
+        if self.relationship_type:
+            info_parts.append(f"Looking for: {self.relationship_type}")
+        if self.gender:
+            info_parts.append(f"Gender: {self.gender}")
+        if self.religion:
+            info_parts.append(f"Religion: {self.religion}")
+        if self.politics:
+            info_parts.append(f"Politics: {self.politics}")
+        if self.prompts:
+            info_parts.append("\nPrompts:")
+            for prompt in self.prompts:
+                info_parts.append(f"- {prompt}")
+        return "\n".join(info_parts) if info_parts else "No profile information available"
+
 class SubjectPair:
     subject_id: str
     subject_content: str | dspy.Image
@@ -27,7 +86,105 @@ class SubjectPair:
 class HingeAPI:
     def __init__(self, xml_path="window_dump.xml"):
         self.xml_path = xml_path
+        self.profile_info = self._extract_profile_info()
         self.subject_pairs = self._parse_subjects_and_hearts()
+
+    def _extract_profile_info(self) -> ProfileInfo:
+        """Extract profile information from the UI hierarchy."""
+        profile = ProfileInfo()
+        tree = ET.parse(self.xml_path)
+        root = tree.getroot()
+
+        # First pass: collect all text nodes and their relationships
+        text_nodes = []
+        for node in root.iter("node"):
+            text = node.get("text", "").strip()
+            content_desc = node.get("content-desc", "").strip()
+            bounds = node.get("bounds", "")
+            
+            if text or content_desc:
+                text_nodes.append((node, text, content_desc, bounds))
+
+        # Second pass: analyze text nodes for profile information
+        for node, text, content_desc, bounds in text_nodes:
+            # Extract name (usually in a TextView near the top)
+            if text and not text.lower() in ["more", "like", "skip"] and not text.isdigit():
+                # Check if this is likely a name (not a prompt or response)
+                parent = node.getparent()
+                if parent is not None:
+                    parent_class = parent.get("class", "")
+                    if "TextView" in parent_class and not any(prompt in text.lower() for prompt in ["looking for", "relationship"]):
+                        profile.name = text
+
+            # Extract gender (usually in a TextView)
+            if text.lower() in ["he", "she", "they", "woman", "man"]:
+                profile.gender = text.lower()
+
+            # Extract prompts and responses by looking at the UI structure
+            # First, find all TextViews that might be prompt starters
+            if node.get("class") == "android.widget.TextView" and node.get("text"):
+                text = node.get("text", "").strip()
+                if text and text.lower() not in ["more", "like", "skip"]:
+                    # Check if this is a prompt starter
+                    first_text = text.lower()
+                    if any(phrase in first_text for phrase in [
+                        "dating me is like",
+                        "i won't shut up about",
+                        "i go crazy for",
+                        "my simple pleasures",
+                        "my most controversial opinion",
+                        "i bet you can't",
+                        "we'll get along if",
+                        "the way to win me over is"
+                    ]):
+                        # Found a prompt starter, look for the response in siblings
+                        parent = node.getparent()
+                        if parent is not None:
+                            # Look for the response TextView
+                            for sibling in parent:
+                                if sibling.get("class") == "android.widget.TextView" and sibling != node:
+                                    response = sibling.get("text", "").strip()
+                                    if response:
+                                        profile.prompts.append(f"{text} | {response}")
+                                        break
+
+            # Extract location (usually contains city/state)
+            if "location" in content_desc.lower():
+                profile.location = text
+
+            # Extract university
+            if "college or university" in content_desc.lower():
+                profile.university = text
+
+            # Extract hometown
+            if "home town" in content_desc.lower():
+                profile.hometown = text
+
+            # Extract relationship type
+            if "dating intentions" in content_desc.lower():
+                profile.relationship_type = text
+
+            # Extract age (usually in format "X years old" or just a number)
+            if text and text.isdigit() and 18 <= int(text) <= 100:
+                profile.age = int(text)
+
+            # Extract height
+            if "height" in content_desc.lower():
+                profile.height = text
+
+            # Extract job
+            if "job" in content_desc.lower():
+                profile.job = text
+
+            # Extract religion
+            if "religion" in content_desc.lower():
+                profile.religion = text
+
+            # Extract politics
+            if "politics" in content_desc.lower():
+                profile.politics = text
+
+        return profile
 
     def _parse_subjects_and_hearts(self):
         tree = ET.parse(self.xml_path)
@@ -95,6 +252,10 @@ class HingeAPI:
     def get_all_subjects(self):
         """Returns a list of all subjects with their content."""
         return [(str(pair), pair.subject_content, pair.bounds) for pair in self.subject_pairs]
+
+    def get_profile_info(self) -> ProfileInfo:
+        """Returns the profile information for the current page."""
+        return self.profile_info
 
     def submit_reply(self, subject_id: str, response_text: str):
         for pair in self.subject_pairs:

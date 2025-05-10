@@ -6,6 +6,9 @@ import pathlib
 import xml.etree.ElementTree as ET
 import re
 import os
+from src.mobile_api.api import HingeAPI
+from src.utils.adb_helpers import tap, parse_bounds, get_element_center
+
 
 # Ensure adb command exists
 try:
@@ -38,9 +41,6 @@ def adb(*cmd, **kw):
 def swipe(x1, y1, x2, y2, ms=300):
     adb("shell", "input", "swipe", x1, y1, x2, y2, ms)
 
-def tap(x, y):
-    adb("shell", "input", "tap", x, y)
-
 def type_text(txt):
     # Ensure text is properly quoted for the shell, replace space with %s for adb input text
     quoted_text = shlex.quote(txt).replace(' ', '%s')
@@ -67,20 +67,6 @@ def get_ui_dump(local_path="window_dump.xml"):
     print(f"UI hierarchy saved to: {local_path}")
 
 # ---------- XML Parsing Helpers ---------- #
-def parse_bounds(bounds_str):
-    """Parses bounds string '[x1,y1][x2,y2]' into (x1, y1, x2, y2)."""
-    match = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', bounds_str)
-    if match:
-        return tuple(map(int, match.groups()))
-    return None
-
-def get_element_center(bounds):
-    """Calculates the center (x, y) of a bounds tuple."""
-    if bounds:
-        x1, y1, x2, y2 = bounds
-        return (x1 + x2) // 2, (y1 + y2) // 2
-    return None
-
 def find_element(root, attribute, value_pattern, clickable_only=False):
     """Finds the first element matching an attribute pattern."""
     for element in root.iter('node'):
@@ -279,15 +265,24 @@ def capture_profile_photos(output_dir="profile_photos"):
     print(f"\nPhoto capture finished. {total_photos} photos saved in '{output_dir}'.")
 
 
-# ---------- Main Execution ---------- #
-if __name__ == "__main__":
-    # Example usage:
-    # swipe(540, 1600, 540, 400) # scroll up on a 1080×1920 display
-    # time.sleep(0.5)
-    # tap(540, 960) # tap centre of screen
-    # type_text("hello world")
-    # screenshot("shot.png")
-    # print("done →", pathlib.Path("shot.png").resolve())
 
-    # Run the photo capturing workflow
-    capture_profile_photos()
+
+
+
+if __name__ == "__main__":
+    # capture_profile_photos()
+
+
+    # Basic test for HingeAPI
+    api = HingeAPI(xml_path="window_dump.xml")
+    print("Found subject pairs:")
+    for pair in api.subject_pairs:
+        print(f"Subject ID: {pair.subject_id}, Bounds: {pair.heart_button_bounds}")
+
+    # Try to submit a reply to the first subject (if any)
+    if api.subject_pairs:
+        first_subject = api.subject_pairs[0]
+        print(f"Submitting reply to: {first_subject.subject_id}")
+        api.submit_reply(first_subject.subject_id, "Test reply!")
+    else:
+        print("No subject pairs found in the XML.")

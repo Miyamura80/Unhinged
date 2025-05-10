@@ -2,6 +2,23 @@ model_name: gpt-4o
 
 dot_global_config_health_check: true
 
+########################################################
+# Debugging
+########################################################
+agent:
+  chat_agent_model: gemini/gemini-2.0-flash
+
+
+llm_config:
+  retry:
+    max_attempts: 3
+    min_wait_seconds: 1
+    max_wait_seconds: 5
+
+
+weird_quirk:
+  temperature: 0.5
+  max_tokens: 100000
 
 ########################################################
 # Debugging

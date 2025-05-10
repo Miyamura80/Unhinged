@@ -33,6 +33,7 @@ class DictWrapper:
 class Config:
     _env_keys = [
         "DEV_ENV",
+        "GEMINI_API_KEY",
     ]
 
     def __init__(self):

@@ -6,8 +6,8 @@ import pathlib
 import xml.etree.ElementTree as ET
 import re
 import os
-from src.mobile_api.api import HingeAPI
-from src.utils.adb_helpers import tap, parse_bounds, get_element_center
+from src.mobile_api.api import HingeAPI, SubjectPair
+from src.utils.adb_helpers import tap, parse_bounds, get_element_center, screenshot, get_ui_dump
 
 
 # Ensure adb command exists
@@ -45,26 +45,6 @@ def type_text(txt):
     # Ensure text is properly quoted for the shell, replace space with %s for adb input text
     quoted_text = shlex.quote(txt).replace(' ', '%s')
     adb("shell", "input", "text", quoted_text)
-
-def screenshot(path="screen.png"):
-    # Ensure the directory exists
-    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
-    # Use adb exec-out for binary data
-    adb("exec-out", "screencap", "-p", stdout=pathlib.Path(path).open("wb"), capture_output=False, text=False)
-    print(f"Screenshot saved to: {pathlib.Path(path).resolve()}")
-
-def get_ui_dump(local_path="window_dump.xml"):
-    """Dumps UI hierarchy from device and pulls it locally."""
-    # Add a small delay before dumping UI, just in case.
-    time.sleep(0.5)
-    remote_path = "/sdcard/window_dump.xml"
-    # Dump UI Hierarchy
-    adb("shell", "uiautomator", "dump", "--compressed", remote_path)
-    # Pull the file
-    adb("pull", remote_path, local_path)
-    # Optional: Remove the file from device after pulling
-    # adb("shell", "rm", remote_path)
-    print(f"UI hierarchy saved to: {local_path}")
 
 # ---------- XML Parsing Helpers ---------- #
 def find_element(root, attribute, value_pattern, clickable_only=False):
@@ -264,25 +244,72 @@ def capture_profile_photos(output_dir="profile_photos"):
     total_photos = screenshot_index - 1
     print(f"\nPhoto capture finished. {total_photos} photos saved in '{output_dir}'.")
 
+def main():
+    # Clean up photo_dump directory
+    if os.path.exists("photo_dump"):
+        for file in os.listdir("photo_dump"):
+            os.remove(os.path.join("photo_dump", file))
+    else:
+        os.makedirs("photo_dump")
 
+    # Track processed photos to avoid duplicates
+    processed_photo_bounds = set()
 
+    def is_valid_photo_bounds(bounds):
+        """Check if the photo bounds have a reasonable aspect ratio."""
+        if not bounds:
+            return False
+        x1, y1, x2, y2 = bounds
+        width = x2 - x1
+        height = y2 - y1
+        # Skip photos that are too wide relative to their height (aspect ratio > 3)
+        return width / height <= 2.5 if height > 0 else False
 
-
+    # Initialize API with first dump
+    dump_path = get_ui_dump(0)
+    api = HingeAPI(dump_path)
+    
+    # Get initial subjects
+    subjects = api.get_all_subjects()
+    print(f"\nFound {len(subjects)} initial subjects")
+    
+    # Try to capture and save photos
+    for subject_str, content, bounds in subjects:
+        if "[Image]" in subject_str or "photo" in subject_str.lower():
+            if bounds and bounds not in processed_photo_bounds and is_valid_photo_bounds(bounds):
+                print(f"Capturing photo: {content}")
+                photo_path = api.capture_subject_photo(SubjectPair(subject_str, content, None, bounds), "photo_dump")
+                if photo_path:
+                    print(f"Saved photo to: {photo_path}")
+                    processed_photo_bounds.add(bounds)
+    
+    # Scroll to find more subjects
+    for i in range(1, 5):
+        print(f"\nScroll {i}/4:")
+        # Swipe up to scroll
+        swipe(1080 // 2, int(2400 * 0.8), 1080 // 2, int(2400 * 0.2), 500)
+        time.sleep(1)  # Wait for scroll animation
+        
+        # Get new UI dump
+        dump_path = get_ui_dump(i)
+        api = HingeAPI(dump_path)
+        
+        # Get subjects after scroll
+        subjects = api.get_all_subjects()
+        print(f"Found {len(subjects)} subjects after scroll")
+        
+        # Try to capture and save photos
+        for subject_str, content, bounds in subjects:
+            if "[Image]" in subject_str or "photo" in subject_str.lower():
+                if bounds and bounds not in processed_photo_bounds and is_valid_photo_bounds(bounds):
+                    print(f"Capturing photo: {content}")
+                    photo_path = api.capture_subject_photo(SubjectPair(subject_str, content, None, bounds), "photo_dump")
+                    if photo_path:
+                        print(f"Saved photo to: {photo_path}")
+                        processed_photo_bounds.add(bounds)
+    
+    print(f"\nFinished scanning for subjects. Captured {len(processed_photo_bounds)} unique photos.")
+    print("✅ Demo started.")
 
 if __name__ == "__main__":
-    # capture_profile_photos()
-
-
-    # Basic test for HingeAPI
-    api = HingeAPI(xml_path="window_dump.xml")
-    print("Found subject pairs:")
-    for pair in api.subject_pairs:
-        print(f"Subject ID: {pair.subject_id}, Bounds: {pair.heart_button_bounds}")
-
-    # Try to submit a reply to the first subject (if any)
-    if api.subject_pairs:
-        first_subject = api.subject_pairs[0]
-        print(f"Submitting reply to: {first_subject.subject_id}")
-        api.submit_reply(first_subject.subject_id, "Test reply!")
-    else:
-        print("No subject pairs found in the XML.")
+    main()

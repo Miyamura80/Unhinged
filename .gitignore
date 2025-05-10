@@ -1,7 +1,8 @@
 src/prompts/spec.md
 profile_photos/
-window_dump.xml
 
+window_dump.xml
+window_dump_after_heart.xml
 old_scripts/
 
 # Overwrite global config

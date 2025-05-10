@@ -3,6 +3,6 @@ description:
 globs: 
 alwaysApply: true
 ---
-As a general rule, anytime we do some sleeping, it should be a floating point number of seconds between 0 to 8 seconds 
+As a general rule, anytime we do some some sleeping, it should be a floating point number of seconds between 0 to 8 seconds. 
 
 You should never wait a constant number of times.

@@ -1,41 +1,8 @@
 # Unhinged
 
-<p align="center">
-  <img src="media/banner.png" alt="Unhinged Banner" width="400">
-</p>
+**AI-Powered Dating Profile Analysis & Automation System**
 
-<p align="center">
-<b>AI-Powered Dating Profile Analysis & Automation System</b>
-</p>
-
-<p align="center">
-  Automated profile extraction, photo analysis, and comprehensive feature inference using advanced AI agents.
-</p>
-
-<p align="center">
-  <a href="#key-features">Key Features</a> •
-  <a href="#how-it-works">How It Works</a> •
-  <a href="#requirements">Requirements</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#configuration">Configuration</a> •
-  <a href="#usage">Usage</a> •
-  <a href="#architecture">Architecture</a> •
-  <a href="#ethical-considerations">Ethics</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FMiyamura80%2FUnhinged%2Fmain%2Fpyproject.toml&query=%24.project.name&label=Project&color=purple" alt="Project Name">
-  <img alt="Project Version" src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FMiyamura80%2FUnhinged%2Fmain%2Fpyproject.toml&query=%24.project.version&label=version&color=blue">
-  <img alt="Python Version" src="https://img.shields.io/badge/python-3.12%2B-blue?logo=python">
-  <img src="https://img.shields.io/badge/License-MIT-blue" alt="License">
-  <img alt="Model" src="https://img.shields.io/badge/Model-Gemini_2.0_Flash-yellow">
-</p>
-
----
-
-<p align="center">
-  <img src="media/example_gif.gif" alt="Demo Animation" width="400">
-</p>
+Automated profile extraction, photo analysis, and comprehensive feature inference using advanced AI agents.
 
 ## Overview
 
@@ -177,57 +144,8 @@ adb devices
 make demo
 ```
 
-## Configuration
-
-### Global Configuration
-Edit `global_config/global_config.yaml`:
-
-```yaml
-model_name: gpt-4o                    # Default fallback model
-
-agent:
-  chat_agent_model: gemini/gemini-2.0-flash-exp  # Primary AI model
-
-llm_config:
-  retry:
-    max_attempts: 3
-    min_wait_seconds: 1
-    max_wait_seconds: 5
-
-logging:
-  verbose: true
-  format:
-    show_time: false
-    show_session_id: true
-```
-
-### Environment Variables
-Store sensitive credentials in `.env`:
-
-```env
-# Required
-GEMINI_API_KEY=your_gemini_api_key
-
-# Optional (for alternative LLM providers)
-OPENAI_API_KEY=your_openai_key
-ANTHROPIC_API_KEY=your_claude_key
-GROQ_API_KEY=your_groq_key
-PERPLEXITY_API_KEY=your_perplexity_key
-
-# Environment
-DEV_ENV=development
-```
-
-Access in Python:
-```python
-from global_config import global_config
-
-print(global_config.GEMINI_API_KEY)
-```
-
 ## Usage
 
-### Make Commands
 ```bash
 make all        # Run main application
 make demo       # Run demo workflow
@@ -236,127 +154,6 @@ make lint       # Format code with Black
 make vulture    # Detect dead code
 make show-mobile-screen  # Stream device screen to desktop
 ```
-
-### Basic Profile Analysis
-```python
-from src.demo.demo import main
-
-# Automatically captures and analyzes current profile
-await main()
-```
-
-### Custom Analysis
-```python
-from src.algo.feature_extract import extract_features_from_photos
-from src.models.profile import Profile
-
-# Analyze custom photos
-photos = ["path/to/photo1.jpg", "path/to/photo2.jpg"]
-analysis = await extract_features_from_photos(photos)
-
-print(f"Dating Style: {analysis.dating_style}")
-print(f"Lifestyle: {analysis.lifestyle}")
-print(f"Interests: {analysis.interests}")
-```
-
-### Using Different LLM Providers
-```python
-from global_config import global_config
-
-# Change model in code
-global_config.agent['chat_agent_model'] = 'claude-3-5-sonnet-20241022'
-
-# Or set in global_config.yaml
-```
-
-## Architecture
-
-### Project Structure
-```
-src/
-├── agent/                    # AI Agent implementations
-│   ├── react_agent.py        # DSPy ReAct agent with retry logic
-│   └── dspy_langfuse.py      # Langfuse observability integration
-│
-├── algo/
-│   └── feature_extract.py    # Photo analysis orchestration
-│
-├── models/
-│   └── profile.py            # Profile, PhotoAnalysis, Education models
-│
-├── mobile_api/
-│   └── api.py                # HingeAPI for UI parsing & extraction
-│
-├── demo/
-│   └── demo.py               # Main demo workflow
-│
-├── utils/
-│   ├── adb_helpers.py        # ADB automation primitives
-│   └── logging_config.py     # Centralized logging setup
-│
-└── prompts/
-    └── feature_extractor.txt # AI analysis prompts
-```
-
-### Key Technologies
-- **DSPy 2.6+** - AI orchestration framework
-- **LiteLLM** - Multi-provider LLM abstraction
-- **Langfuse** - AI observability and tracing
-- **Google Gemini 2.0** - Primary language model
-- **Pillow** - Image processing
-- **lxml** - XML parsing
-- **Loguru** - Advanced logging
-
-### Data Models
-```python
-@dataclass
-class Profile:
-    name: str
-    age: int
-    education: List[Education]
-    location: str
-    dating_style: DatingStyle
-    lifestyle: Lifestyle
-    interests: List[str]
-    personality_traits: List[str]
-    # ... and more
-
-@dataclass
-class PhotoAnalysis:
-    physical_attributes: Dict[str, Any]
-    activities: List[str]
-    location_context: str
-    style_assessment: str
-    inferred_interests: List[str]
-```
-
-## Development
-
-### Testing
-```bash
-# Run all tests
-make test
-
-# Run specific test
-pytest tests/test_template.py
-
-# Run with coverage
-pytest --cov=src tests/
-```
-
-### Linting
-```bash
-# Format code
-make lint
-
-# Check for dead code
-make vulture
-```
-
-### Cursor IDE Integration
-The repository includes `.cursorrules` for AI-assisted coding. Use:
-- `CTRL+L` - Chat with context-aware AI
-- `CTRL+K` - Inline AI editing with repo style guidelines
 
 ## Ethical Considerations
 

@@ -22,7 +22,7 @@ check_uv:
 		exit 1; \
 	fi; \
 	version=$$(uv --version | awk '{print $$2}'); \
-	if [ "$$(printf '%s\n' "$(UV_MIN_VERSION)" "$$version" | sort -V | head -n1)" != "$(UV_MIN_VERSION)" ]; then \
+	if ! awk -v min="$(UV_MIN_VERSION)" -v got="$$version" 'BEGIN { split(min, m, "."); split(got, g, "."); for (i = 1; i <= 3; i++) { if ((g[i] + 0) != (m[i] + 0)) exit ((g[i] + 0) > (m[i] + 0) ? 0 : 1) } exit 0 }'; then \
 		echo "$(RED)uv $$version is older than the required $(UV_MIN_VERSION). Run 'uv self update'.$(RESET)"; \
 		exit 1; \
 	fi; \
@@ -138,7 +138,7 @@ vulture: check_uv
 # Dependencies
 ########################################################
 
-requirements:
+requirements: check_uv
 	@echo "$(YELLOW)🔍Checking requirements...$(RESET)"
-	@uv export --frozen --no-hashes --no-emit-project --output-file requirements.txt
+	@uv export --locked --no-hashes --no-emit-project --output-file requirements.txt
 	@echo "$(GREEN)✅Requirements checked.$(RESET)"

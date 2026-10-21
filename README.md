@@ -80,9 +80,9 @@ graph TD
 
 ### Software Dependencies
 - **Python 3.12+**
-- **[Rye](https://rye.astral.sh/)** - Python package manager
+- **[uv](https://docs.astral.sh/uv/)** (>= 0.13.4) - Python package manager
   ```bash
-  curl -sSf https://rye.astral.sh/get | bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 - **ADB (Android Debug Bridge)**
   ```bash
@@ -113,7 +113,7 @@ graph TD
 ```bash
 git clone https://github.com/Miyamura80/Unhinged.git
 cd Unhinged
-rye sync
+uv sync
 ```
 
 ### 2. Configure Environment Variables
@@ -180,7 +180,7 @@ This project uses the following open-source tools:
 - [DSPy](https://github.com/stanfordnlp/dspy) - Stanford NLP AI framework
 - [LiteLLM](https://github.com/BerriAI/litellm) - LLM provider abstraction
 - [Langfuse](https://langfuse.com/) - AI observability platform
-- [Rye](https://rye.astral.sh/) - Python package manager
+- [uv](https://docs.astral.sh/uv/) - Python package manager
 - [Cursor](https://cursor.com) - AI-powered code editor
 
 ## License

@@ -1349,7 +1349,7 @@ requires-dist = [
     { name = "dspy", specifier = ">=2.6.23" },
     { name = "human-id", specifier = ">=0.2.0" },
     { name = "langfuse", specifier = ">=2.60.4" },
-    { name = "litellm", specifier = ">=1.68.2" },
+    { name = "litellm", specifier = ">=1.68.2,!=1.82.7,!=1.82.8,!=1.107.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "lxml", specifier = ">=5.4.0" },
     { name = "pillow", specifier = ">=11.2.1" },

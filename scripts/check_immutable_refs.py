@@ -77,7 +77,7 @@ def key_patterns(key: str) -> tuple[re.Pattern[str], re.Pattern[str], re.Pattern
 
 BLOCK_PATTERNS = key_patterns(BLOCK_KEY)
 FLOW_PATTERNS = key_patterns(FLOW_KEY)
-QUOTED_OR_COMMENT = re.compile(r""""(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|\s#.*$""")
+QUOTED_OR_COMMENT = re.compile(r""""(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|(?:^|\s)#.*$""")
 
 
 def flow_depth(line: str, depth: int) -> int:
@@ -331,6 +331,8 @@ def next_scalar_line(
         ).strip()  # `&v latest`: the anchor is not the value
         if not value:
             continue
+        if value[0] in "[{":
+            return None  # a flow collection: its own line is scanned for keys
         return value.strip("\"'")
     return None
 

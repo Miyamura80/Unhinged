@@ -8,17 +8,24 @@ import re
 import os
 import glob
 from src.mobile_api.api import HingeAPI, SubjectPair
-from src.utils.adb_helpers import tap, parse_bounds, get_element_center, screenshot, get_ui_dump
+from src.utils.adb_helpers import (
+    tap,
+    parse_bounds,
+    get_element_center,
+    screenshot,
+    get_ui_dump,
+)
 from src.algo.feature_extract import analyze_profile
 import asyncio
 from datetime import datetime
-
 
 # Ensure adb command exists
 try:
     subprocess.run(["adb", "--version"], check=True, capture_output=True)
 except (FileNotFoundError, subprocess.CalledProcessError) as e:
-    print(f"Error: 'adb' command not found or not working. Please ensure it's installed and in your PATH. {e}")
+    print(
+        f"Error: 'adb' command not found or not working. Please ensure it's installed and in your PATH. {e}"
+    )
     exit(1)
 
 
@@ -27,60 +34,70 @@ def adb(*cmd, **kw):
     try:
         # Default to capturing output to avoid printing unnecessary adb info, unless stdout/stderr specified
         kw.setdefault("capture_output", True)
-        kw.setdefault("text", True) # Decode output as text
+        kw.setdefault("text", True)  # Decode output as text
         # print(f"Running: adb {' '.join(map(str, cmd))}") # Optional: Debug print
         result = subprocess.run(["adb", *map(str, cmd)], check=True, **kw)
         # print(f"Result: {result.stdout or result.stderr}") # Optional: Debug print
         return result
     except FileNotFoundError:
-        print("Error: 'adb' command not found. Please ensure it's installed and in your PATH.")
+        print(
+            "Error: 'adb' command not found. Please ensure it's installed and in your PATH."
+        )
         raise
     except subprocess.CalledProcessError as e:
         print(f"Error running adb command: {' '.join(map(str, cmd))}")
         print(f"Stderr: {e.stderr}")
         print(f"Stdout: {e.stdout}")
-        raise # Re-raise the exception after printing details
+        raise  # Re-raise the exception after printing details
+
 
 # ---------- primitives ---------- #
 def swipe(x1, y1, x2, y2, ms=300):
     adb("shell", "input", "swipe", x1, y1, x2, y2, ms)
 
+
 def type_text(txt):
     # Ensure text is properly quoted for the shell, replace space with %s for adb input text
-    quoted_text = shlex.quote(txt).replace(' ', '%s')
+    quoted_text = shlex.quote(txt).replace(" ", "%s")
     adb("shell", "input", "text", quoted_text)
+
 
 # ---------- XML Parsing Helpers ---------- #
 def find_element(root, attribute, value_pattern, clickable_only=False):
     """Finds the first element matching an attribute pattern."""
-    for element in root.iter('node'):
+    for element in root.iter("node"):
         attr_value = element.get(attribute)
         if attr_value and re.search(value_pattern, attr_value):
-            if clickable_only and element.get('clickable') != 'true':
+            if clickable_only and element.get("clickable") != "true":
                 continue
             return element
     return None
+
 
 def find_photo_element(root):
     """Attempts to find the main photo element based on content-desc or size."""
     print("Searching for photo element...")
     # Try finding based on content-desc containing 'photo' (less strict)
-    photo_element = find_element(root, 'content-desc', r'photo', clickable_only=False) # Changed regex, removed clickable_only=True just in case
-    if photo_element is not None: # Explicit check
-        print(f"Found element by content-desc 'photo': {photo_element.get('content-desc')}, bounds: {photo_element.get('bounds')}")
+    photo_element = find_element(
+        root, "content-desc", r"photo", clickable_only=False
+    )  # Changed regex, removed clickable_only=True just in case
+    if photo_element is not None:  # Explicit check
+        print(
+            f"Found element by content-desc 'photo': {photo_element.get('content-desc')}, bounds: {photo_element.get('bounds')}"
+        )
         return photo_element
     else:
         print("Did not find element with 'photo' in content-desc.")
 
     # Fallback: Look for large view elements (potential photo container)
     print("Falling back to searching for large View elements...")
-    screen_width = 1080 # Assuming 1080p screen, adjust if necessary
-    min_photo_width = screen_width * 0.7 # Example threshold
+    screen_width = 1080  # Assuming 1080p screen, adjust if necessary
+    min_photo_width = screen_width * 0.7  # Example threshold
 
     potential_candidates = []
-    for element in root.iter('node'):
-        bounds_str = element.get('bounds')
-        class_name = element.get('class')
+    for element in root.iter("node"):
+        bounds_str = element.get("bounds")
+        class_name = element.get("class")
         if not bounds_str or not class_name:
             continue
 
@@ -97,26 +114,34 @@ def find_photo_element(root):
         height = y2 - y1
 
         # Check if it's a large element, likely a photo container
-        if width > min_photo_width and height > width * 0.5 and class_name == 'android.view.View':
-             print(f"  Found potential large View element: bounds={bounds_str}, width={width}, height={height}")
-             potential_candidates.append(element)
-             # Maybe return the first one found? Or the largest? For now, let's just take the first.
-             # This heuristic might need refinement. Consider position, clickability etc.
-             print("Returning first large View element as potential photo.")
-             return element
+        if (
+            width > min_photo_width
+            and height > width * 0.5
+            and class_name == "android.view.View"
+        ):
+            print(
+                f"  Found potential large View element: bounds={bounds_str}, width={width}, height={height}"
+            )
+            potential_candidates.append(element)
+            # Maybe return the first one found? Or the largest? For now, let's just take the first.
+            # This heuristic might need refinement. Consider position, clickability etc.
+            print("Returning first large View element as potential photo.")
+            return element
 
     print("Did not find any suitable large View elements as a fallback.")
-    return None # No suitable element found
+    return None  # No suitable element found
+
 
 def get_tap_coords_for_next_photo(bounds):
     """Calculates tap coordinates on the right side to advance photos."""
     if bounds:
         x1, y1, x2, y2 = bounds
         # Tap near the right edge, vertically centered
-        tap_x = x1 + int((x2 - x1) * 0.9) # 90% across the width
+        tap_x = x1 + int((x2 - x1) * 0.9)  # 90% across the width
         tap_y = (y1 + y2) // 2
         return tap_x, tap_y
     return None
+
 
 def find_parent(root, element):
     """Finds the parent element of a given element in the tree."""
@@ -126,22 +151,26 @@ def find_parent(root, element):
                 return parent
     return None
 
+
 def find_all_elements(root, attribute, value_pattern, clickable_only=False):
     """Finds all elements matching an attribute pattern."""
     found_elements = []
-    for element in root.iter('node'):
+    for element in root.iter("node"):
         attr_value = element.get(attribute)
         if attr_value and re.search(value_pattern, attr_value):
-            if clickable_only and element.get('clickable') != 'true':
+            if clickable_only and element.get("clickable") != "true":
                 continue
             found_elements.append(element)
     return found_elements
+
 
 def find_all_photo_elements(root):
     """Attempts to find all photo elements based on content-desc."""
     print("Searching for all photo elements...")
     # Find elements based on content-desc containing 'photo'
-    photo_elements = find_all_elements(root, 'content-desc', r'photo', clickable_only=False)
+    photo_elements = find_all_elements(
+        root, "content-desc", r"photo", clickable_only=False
+    )
     if photo_elements:
         print(f"Found {len(photo_elements)} element(s) with 'photo' in content-desc.")
         # Optionally, print details of found elements for debugging
@@ -151,19 +180,22 @@ def find_all_photo_elements(root):
         print("Did not find any elements with 'photo' in content-desc.")
     return photo_elements
 
+
 # ---------- Photo Scraping Workflow ---------- #
 def capture_profile_photos(output_dir="profile_photos"):
     """Cycles through photos on the current profile by scrolling vertically and captures screenshots."""
     os.makedirs(output_dir, exist_ok=True)
     screenshot_index = 1
-    processed_photo_bounds = set() # Use bounds string as ID
+    processed_photo_bounds = set()  # Use bounds string as ID
     no_new_photos_streak = 0
-    max_scrolls_without_new = 3 # Stop after 3 scrolls reveal nothing new
+    max_scrolls_without_new = 3  # Stop after 3 scrolls reveal nothing new
 
     print("Starting photo capture process with vertical scrolling...")
 
     while no_new_photos_streak < max_scrolls_without_new:
-        print(f"\nProcessing screen state (scroll attempt {no_new_photos_streak + 1})...")
+        print(
+            f"\nProcessing screen state (scroll attempt {no_new_photos_streak + 1})..."
+        )
         # 1. Get current UI state
         dump_file = "window_dump.xml"
         try:
@@ -180,31 +212,39 @@ def capture_profile_photos(output_dir="profile_photos"):
             print("No photo elements found on this screen.")
             # If we never found any photos at all, maybe break early?
             if not processed_photo_bounds:
-                 print("No photos found initially. Ensure you are on a profile screen. Stopping.")
-                 break
-        
+                print(
+                    "No photos found initially. Ensure you are on a profile screen. Stopping."
+                )
+                break
+
         new_photos_found_this_iteration = False
         # 3. Process and screenshot new photos
         for photo_element in visible_photos:
             bounds_str = photo_element.get("bounds")
             if not bounds_str:
-                print(f"Skipping element with no bounds: {photo_element.get('content-desc')}")
+                print(
+                    f"Skipping element with no bounds: {photo_element.get('content-desc')}"
+                )
                 continue
 
             if bounds_str not in processed_photo_bounds:
-                print(f"Found new photo: bounds={bounds_str}, content-desc={photo_element.get('content-desc')}")
+                print(
+                    f"Found new photo: bounds={bounds_str}, content-desc={photo_element.get('content-desc')}"
+                )
                 processed_photo_bounds.add(bounds_str)
                 new_photos_found_this_iteration = True
 
-                screenshot_path = os.path.join(output_dir, f"photo_{screenshot_index}.png")
-                
+                screenshot_path = os.path.join(
+                    output_dir, f"photo_{screenshot_index}.png"
+                )
+
                 # Option 1: Screenshot whole screen (simpler)
                 screenshot(screenshot_path)
-                print(f"  Screenshot {screenshot_index} saved (full screen)." )
-                
+                print(f"  Screenshot {screenshot_index} saved (full screen).")
+
                 # Option 2: Crop screenshot to bounds (more complex, needs image lib like Pillow)
                 # bounds = parse_bounds(bounds_str)
-                # if bounds: 
+                # if bounds:
                 #    # full_screenshot_path = "temp_fullscreen.png"
                 #    # screenshot(full_screenshot_path)
                 #    # crop_image(full_screenshot_path, screenshot_path, bounds) # Requires Pillow
@@ -218,16 +258,18 @@ def capture_profile_photos(output_dir="profile_photos"):
 
                 screenshot_index += 1
             # else:
-                # print(f"Skipping already processed photo: bounds={bounds_str}")
+            # print(f"Skipping already processed photo: bounds={bounds_str}")
 
         # 4. Check if we should continue scrolling
         if new_photos_found_this_iteration:
-            no_new_photos_streak = 0 # Reset streak
+            no_new_photos_streak = 0  # Reset streak
         else:
             print("No new photos found on this screen.")
             no_new_photos_streak += 1
             if no_new_photos_streak >= max_scrolls_without_new:
-                print(f"No new photos found for {max_scrolls_without_new} consecutive scrolls. Stopping.")
+                print(
+                    f"No new photos found for {max_scrolls_without_new} consecutive scrolls. Stopping."
+                )
                 break
 
         # 5. Perform vertical scroll down
@@ -235,11 +277,13 @@ def capture_profile_photos(output_dir="profile_photos"):
         screen_width = 1080
         screen_height = 2400
         scroll_x = screen_width // 2
-        scroll_y_start = int(screen_height * 0.8) # Start scroll from 80% down
-        scroll_y_end = int(screen_height * 0.2)   # Scroll up to 20%
-        scroll_duration_ms = 500 # Slightly longer for smoother scroll
+        scroll_y_start = int(screen_height * 0.8)  # Start scroll from 80% down
+        scroll_y_end = int(screen_height * 0.2)  # Scroll up to 20%
+        scroll_duration_ms = 500  # Slightly longer for smoother scroll
 
-        print(f"Scrolling down: Swiping from ({scroll_x}, {scroll_y_start}) to ({scroll_x}, {scroll_y_end})")
+        print(
+            f"Scrolling down: Swiping from ({scroll_x}, {scroll_y_start}) to ({scroll_x}, {scroll_y_end})"
+        )
         swipe(scroll_x, scroll_y_start, scroll_x, scroll_y_end, scroll_duration_ms)
 
         # 6. Wait for UI to settle after scroll
@@ -247,6 +291,7 @@ def capture_profile_photos(output_dir="profile_photos"):
 
     total_photos = screenshot_index - 1
     print(f"\nPhoto capture finished. {total_photos} photos saved in '{output_dir}'.")
+
 
 def main():
     # Clean up photo_dump directory
@@ -275,7 +320,7 @@ def main():
     # Initialize API with first dump
     dump_path = get_ui_dump(0)
     api = HingeAPI(dump_path)
-    
+
     # Print profile information
     print("\n=== Profile Information ===")
     profile_info = api.get_profile_info()
@@ -295,34 +340,40 @@ def main():
         for prompt in profile_info.prompts:
             print(f"- {prompt}")
     print("=========================\n")
-    
+
     # Get initial subjects
     subjects = api.get_all_subjects()
     print(f"\nFound {len(subjects)} initial subjects")
-    
+
     # Try to capture and save photos
     for subject_str, content, bounds in subjects:
         if "[Image]" in subject_str or "photo" in subject_str.lower():
-            if bounds and bounds not in processed_photo_bounds and is_valid_photo_bounds(bounds):
+            if (
+                bounds
+                and bounds not in processed_photo_bounds
+                and is_valid_photo_bounds(bounds)
+            ):
                 print(f"Capturing photo: {content}")
-                photo_path = api.capture_subject_photo(SubjectPair(subject_str, content, None, bounds), "photo_dump")
+                photo_path = api.capture_subject_photo(
+                    SubjectPair(subject_str, content, None, bounds), "photo_dump"
+                )
                 if photo_path:
                     print(f"Saved photo to: {photo_path}")
                     processed_photo_bounds.add(bounds)
-    
+
     # Scroll to find more subjects
     for i in range(1, 5):
         print(f"\nScroll {i}/4:")
         # Swipe up to scroll
         swipe(1080 // 2, int(2400 * 0.8), 1080 // 2, int(2400 * 0.2), 500)
         time.sleep(1)  # Wait for scroll animation
-        
+
         # Get new UI dump and update the existing API instance
         dump_path = get_ui_dump(i)
         api.xml_path = dump_path  # Update the XML path
         api._update_profile_info()  # Update profile info
         api.subject_pairs = api._parse_subjects_and_hearts()  # Update subjects
-        
+
         # Print profile information for this scroll
         print("\n=== Profile Information ===")
         profile_info = api.get_profile_info()
@@ -342,35 +393,45 @@ def main():
             for prompt in profile_info.prompts:
                 print(f"- {prompt}")
         print("=========================\n")
-        
+
         # Get subjects after scroll
         subjects = api.get_all_subjects()
         print(f"Found {len(subjects)} subjects after scroll")
-        
+
         # Try to capture and save photos
         for subject_str, content, bounds in subjects:
             if "[Image]" in subject_str or "photo" in subject_str.lower():
-                if bounds and bounds not in processed_photo_bounds and is_valid_photo_bounds(bounds):
+                if (
+                    bounds
+                    and bounds not in processed_photo_bounds
+                    and is_valid_photo_bounds(bounds)
+                ):
                     print(f"Capturing photo: {content}")
-                    photo_path = api.capture_subject_photo(SubjectPair(subject_str, content, None, bounds), "photo_dump")
+                    photo_path = api.capture_subject_photo(
+                        SubjectPair(subject_str, content, None, bounds), "photo_dump"
+                    )
                     if photo_path:
                         print(f"Saved photo to: {photo_path}")
                         processed_photo_bounds.add(bounds)
-    
-    print(f"\nFinished scanning for subjects. Captured {len(processed_photo_bounds)} unique photos.")
+
+    print(
+        f"\nFinished scanning for subjects. Captured {len(processed_photo_bounds)} unique photos."
+    )
 
     # Run feature extraction on captured photos
     print("\nRunning feature extraction on captured photos...")
     profile_photos = sorted(glob.glob("photo_dump/photo_*.png"))
-    
+
     if profile_photos:
         # Run feature extraction
-        profile = asyncio.run(analyze_profile(profile_images=profile_photos, profile_info=profile_info))
-        
+        profile = asyncio.run(
+            analyze_profile(profile_images=profile_photos, profile_info=profile_info)
+        )
+
         # Generate timestamp for the output file
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = f"feature_extracted/profile_analysis_{timestamp}.txt"
-        
+
         # Write analysis results to file
         with open(output_file, "w") as f:
             f.write("=== Profile Analysis Results ===\n")
@@ -378,7 +439,7 @@ def main():
             f.write(f"Age: {profile.age}\n")
             f.write(f"Location: {profile.location}\n")
             f.write(f"Bio: {profile.bio}\n\n")
-            
+
             f.write("=== Photo Analysis ===\n")
             for i, photo in enumerate(profile.photos, 1):
                 f.write(f"\nPhoto {i}:\n")
@@ -390,7 +451,7 @@ def main():
                 f.write(f"  Hair Color: {photo.hair_color}\n")
                 f.write(f"  Has Piercings: {photo.has_piercings}\n")
                 f.write(f"  Makeup Level: {photo.makeup_level}\n")
-            
+
             f.write("\n=== Education ===\n")
             for edu in profile.education:
                 f.write(f"Institution: {edu.institution}\n")
@@ -398,22 +459,25 @@ def main():
                     f.write(f"Degree: {edu.degree}\n")
                 if edu.field:
                     f.write(f"Field: {edu.field}\n")
-            
+
             f.write("\n=== Lifestyle ===\n")
             f.write(f"Party Frequency: {profile.party_frequency}\n")
             f.write(f"Drug Usage: {profile.drug_usage}\n")
             f.write(f"Dating Style: {profile.dating_style}\n")
             f.write(f"Lifestyle: {profile.lifestyle}\n")
-            
+
             f.write("\n=== Inferred Information ===\n")
             f.write(f"Inferred Interests: {', '.join(profile.inferred_interests)}\n")
-            f.write(f"Inferred Personality Traits: {', '.join(profile.inferred_personality_traits)}\n")
-        
+            f.write(
+                f"Inferred Personality Traits: {', '.join(profile.inferred_personality_traits)}\n"
+            )
+
         print(f"Feature extraction results saved to: {output_file}")
     else:
         print("No photos were captured for feature extraction.")
-    
+
     print("✅ Demo started.")
+
 
 if __name__ == "__main__":
     main()

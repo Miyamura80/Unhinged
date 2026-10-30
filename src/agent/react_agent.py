@@ -1,4 +1,4 @@
-from typing import Callable # Changed from List, Callable; asyncio removed
+from typing import Callable  # Changed from List, Callable; asyncio removed
 import dspy
 from global_config import global_config
 
@@ -7,17 +7,18 @@ from tenacity import (
     retry,
     stop_after_attempt,
     wait_exponential,
-    retry_if_exception_type
+    retry_if_exception_type,
 )
 from src.agent.dspy_langfuse import LangFuseDSPYCallback
 from litellm import ServiceUnavailableError
 from langfuse.decorators import observe
 
-class ReactAgent: # Renamed from ReactAgentWithMemory
+
+class ReactAgent:  # Renamed from ReactAgentWithMemory
     def __init__(
         self,
         agent_signature: dspy.Signature,
-        tools: list[Callable] = [], # Changed List to list
+        tools: list[Callable] = [],  # Changed List to list
         model_name: str = global_config.agent.chat_agent_model,
     ):
         api_key = global_config.llm_api_key(model_name)
@@ -35,7 +36,7 @@ class ReactAgent: # Renamed from ReactAgentWithMemory
         # Agent Intiialization
         self.agent_init = dspy.ReAct(
             agent_signature,
-            tools=tools, # Uses tools as passed, no longer appends read_memory
+            tools=tools,  # Uses tools as passed, no longer appends read_memory
         )
         self.agent = dspy.asyncify(self.agent_init)
 
@@ -45,11 +46,11 @@ class ReactAgent: # Renamed from ReactAgentWithMemory
         stop=stop_after_attempt(global_config.llm_config.retry.max_attempts),
         wait=wait_exponential(
             multiplier=global_config.llm_config.retry.min_wait_seconds,
-            max=global_config.llm_config.retry.max_wait_seconds
+            max=global_config.llm_config.retry.max_wait_seconds,
         ),
         before_sleep=lambda retry_state: log.warning(
             f"Retrying due to ServiceUnavailableError. Attempt {retry_state.attempt_number}"
-        )
+        ),
     )
     async def run(
         self,

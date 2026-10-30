@@ -6,6 +6,7 @@ from langfuse.media import LangfuseMedia
 from typing import Optional
 import dspy
 
+
 # 1. Define a custom callback class that extends BaseCallback class
 class LangFuseDSPYCallback(BaseCallback):
     def __init__(self, signature: dspy.Signature):
@@ -21,8 +22,11 @@ class LangFuseDSPYCallback(BaseCallback):
         self.input_field_values = {}
 
         for input_field_name, input_field in signature.input_fields.items():
-            if input_field.annotation == Optional[dspy.Image] or input_field.annotation == dspy.Image:
-                pass # TODO: We need to handle this.
+            if (
+                input_field.annotation == Optional[dspy.Image]
+                or input_field.annotation == dspy.Image
+            ):
+                pass  # TODO: We need to handle this.
 
     def on_module_start(self, call_id, *args, **kwargs):
         inputs = kwargs.get("inputs")
@@ -30,19 +34,19 @@ class LangFuseDSPYCallback(BaseCallback):
 
         for input_field_name in self.input_field_names:
             if input_field_name in extracted_args:
-                self.input_field_values[input_field_name] = extracted_args[input_field_name]
+                self.input_field_values[input_field_name] = extracted_args[
+                    input_field_name
+                ]
 
     def on_module_end(self, call_id, outputs, exception):
         metadata = {
             "existing_trace_id": langfuse_context.get_current_trace_id(),
             "parent_observation_id": langfuse_context.get_current_observation_id(),
         }
-        outputs_extracted = {k:v for k,v in outputs.items()}
+        outputs_extracted = {k: v for k, v in outputs.items()}
 
         langfuse_context.update_current_observation(
-            input=self.input_field_values,
-            output=outputs_extracted,
-            metadata=metadata
+            input=self.input_field_values, output=outputs_extracted, metadata=metadata
         )
 
     def on_lm_start(self, call_id, *args, **kwargs):
@@ -50,7 +54,7 @@ class LangFuseDSPYCallback(BaseCallback):
         if self.current_span:
             return
 
-        # Everything related to the LM instance 
+        # Everything related to the LM instance
         lm_instance = kwargs.get("instance")
         lm_dict = lm_instance.__dict__
         model_name = lm_dict.get("model")
@@ -84,23 +88,21 @@ class LangFuseDSPYCallback(BaseCallback):
                     "temperature": temperature,
                     "max_tokens": max_tokens,
                     "system": system_prompt,
-                }
+                },
             )
 
     def on_lm_end(self, call_id, outputs, exception):
         if isinstance(outputs, list):
             completion = outputs[0]
-            return 
+            return
         else:
             model_name = outputs.model
             choices = outputs.choices[0]
             completion = choices.message.content
 
-
-
         total_cost = completion_cost(
             model=model_name,
-            prompt=self.current_system_prompt+self.current_prompt,
+            prompt=self.current_system_prompt + self.current_prompt,
             completion=completion,
         )
 
@@ -110,9 +112,14 @@ class LangFuseDSPYCallback(BaseCallback):
             self.current_span.end(
                 output=completion,
                 usage_details={
-                    "prompt_tokens": len(self.current_system_prompt + self.current_prompt),
+                    "prompt_tokens": len(
+                        self.current_system_prompt + self.current_prompt
+                    ),
                     "completion_tokens": len(completion),
-                    "total_tokens": len(self.current_system_prompt + self.current_prompt) + len(completion),
+                    "total_tokens": len(
+                        self.current_system_prompt + self.current_prompt
+                    )
+                    + len(completion),
                 },
                 model=model_name,
                 cost_details={
@@ -122,4 +129,3 @@ class LangFuseDSPYCallback(BaseCallback):
             self.current_span = None
 
         self.current_generation = completion
-

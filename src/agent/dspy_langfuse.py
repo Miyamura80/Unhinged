@@ -2,7 +2,6 @@ from dspy.utils.callback import BaseCallback
 from langfuse.decorators import langfuse_context
 from langfuse import Langfuse
 from litellm import completion_cost
-from langfuse.media import LangfuseMedia
 from typing import Optional
 import dspy
 

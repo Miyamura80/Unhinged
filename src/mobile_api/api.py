@@ -224,11 +224,6 @@ class HingeAPI:
         print(f"Job: {self.profile_info.job}")
         print(f"University: {self.profile_info.university}")
 
-    def _extract_profile_info(self) -> ProfileInfo:
-        """Extract profile information from the UI hierarchy."""
-        self._update_profile_info()
-        return self.profile_info
-
     def _parse_subjects_and_hearts(self):
         tree = ET.parse(self.xml_path)
         root = tree.getroot()

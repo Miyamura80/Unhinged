@@ -57,6 +57,8 @@ jobs:
       run: echo "HELICONE_API_KEY=${{ secrets.HELICONE_API_KEY }}" >> $GITHUB_ENV
     - name: Set DEV_ENV
       run: echo "DEV_ENV=${{ secrets.DEV_ENV }}" >> $GITHUB_ENV
+    - name: Set GEMINI_API_KEY
+      run: echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
     - name: Run tests
       run: |
         make test

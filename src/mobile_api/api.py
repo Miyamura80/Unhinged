@@ -1,14 +1,23 @@
 import dspy
 from typing import Any, Optional
 import lxml.etree as ET
-from src.utils.adb_helpers import tap, parse_bounds, get_element_center, type_text, get_ui_dump, screenshot
+from src.utils.adb_helpers import (
+    tap,
+    parse_bounds,
+    get_element_center,
+    type_text,
+    get_ui_dump,
+    screenshot,
+)
 from PIL import Image
 import os
 import time
 from datetime import datetime
 
+
 class ProfileInfo:
     """Class to hold profile information that is unique to the current page."""
+
     name: str
     age: Optional[int]
     location: Optional[str]
@@ -64,7 +73,10 @@ class ProfileInfo:
             info_parts.append("\nPrompts:")
             for prompt in self.prompts:
                 info_parts.append(f"- {prompt}")
-        return "\n".join(info_parts) if info_parts else "No profile information available"
+        return (
+            "\n".join(info_parts) if info_parts else "No profile information available"
+        )
+
 
 class SubjectPair:
     subject_id: str
@@ -82,6 +94,7 @@ class SubjectPair:
         if isinstance(self.subject_content, dspy.Image):
             return f"[Image] {self.subject_id}"
         return f"[Text] {self.subject_content}"
+
 
 class HingeAPI:
     def __init__(self, xml_path="window_dump.xml"):
@@ -101,19 +114,26 @@ class HingeAPI:
             text = node.get("text", "").strip()
             content_desc = node.get("content-desc", "").strip()
             bounds = node.get("bounds", "")
-            
+
             if text or content_desc:
                 text_nodes.append((node, text, content_desc, bounds))
 
         # Second pass: analyze text nodes for profile information
         for node, text, content_desc, bounds in text_nodes:
             # Extract name (usually in a TextView near the top)
-            if text and not text.lower() in ["more", "like", "skip"] and not text.isdigit():
+            if (
+                text
+                and not text.lower() in ["more", "like", "skip"]
+                and not text.isdigit()
+            ):
                 # Check if this is likely a name (not a prompt or response)
                 parent = node.getparent()
                 if parent is not None:
                     parent_class = parent.get("class", "")
-                    if "TextView" in parent_class and not any(prompt in text.lower() for prompt in ["looking for", "relationship"]):
+                    if "TextView" in parent_class and not any(
+                        prompt in text.lower()
+                        for prompt in ["looking for", "relationship"]
+                    ):
                         self.profile_info.name = text
 
             # Extract gender (usually in a TextView)
@@ -127,23 +147,29 @@ class HingeAPI:
                 if text and text.lower() not in ["more", "like", "skip"]:
                     # Check if this is a prompt starter
                     first_text = text.lower()
-                    if any(phrase in first_text for phrase in [
-                        "dating me is like",
-                        "i won't shut up about",
-                        "i go crazy for",
-                        "my simple pleasures",
-                        "my most controversial opinion",
-                        "i bet you can't",
-                        "we'll get along if",
-                        "the way to win me over is",
-                        "unusual skills"
-                    ]):
+                    if any(
+                        phrase in first_text
+                        for phrase in [
+                            "dating me is like",
+                            "i won't shut up about",
+                            "i go crazy for",
+                            "my simple pleasures",
+                            "my most controversial opinion",
+                            "i bet you can't",
+                            "we'll get along if",
+                            "the way to win me over is",
+                            "unusual skills",
+                        ]
+                    ):
                         # Found a prompt starter, look for the response in siblings
                         parent = node.getparent()
                         if parent is not None:
                             # Look for the response TextView
                             for sibling in parent:
-                                if sibling.get("class") == "android.widget.TextView" and sibling != node:
+                                if (
+                                    sibling.get("class") == "android.widget.TextView"
+                                    and sibling != node
+                                ):
                                     response = sibling.get("text", "").strip()
                                     if response:
                                         prompt = f"{text} | {response}"
@@ -163,7 +189,10 @@ class HingeAPI:
                                 label = label_node.get("content-desc", "").lower()
                                 # Get the value from the TextView that follows
                                 for value_node in child:
-                                    if value_node.get("class") == "android.widget.TextView":
+                                    if (
+                                        value_node.get("class")
+                                        == "android.widget.TextView"
+                                    ):
                                         value = value_node.get("text", "").strip()
                                         if value:  # Only process if we have a value
                                             if "age" in label and value.isdigit():
@@ -179,7 +208,9 @@ class HingeAPI:
                                             elif "home town" in label:
                                                 self.profile_info.hometown = value
                                             elif "dating intentions" in label:
-                                                self.profile_info.relationship_type = value
+                                                self.profile_info.relationship_type = (
+                                                    value
+                                                )
                                             elif "religion" in label:
                                                 self.profile_info.religion = value
                                             elif "politics" in label:
@@ -193,11 +224,6 @@ class HingeAPI:
         print(f"Job: {self.profile_info.job}")
         print(f"University: {self.profile_info.university}")
 
-    def _extract_profile_info(self) -> ProfileInfo:
-        """Extract profile information from the UI hierarchy."""
-        self._update_profile_info()
-        return self.profile_info
-
     def _parse_subjects_and_hearts(self):
         tree = ET.parse(self.xml_path)
         root = tree.getroot()
@@ -207,8 +233,7 @@ class HingeAPI:
         card_containers = []
         for node in root.iter("node"):
             class_name = node.get("class", "")
-            if (class_name == "android.view.View" and 
-                "bounds" in node.attrib):
+            if class_name == "android.view.View" and "bounds" in node.attrib:
                 card_containers.append(node)
 
         # For each card container, extract its content
@@ -239,8 +264,10 @@ class HingeAPI:
             closest_like = None
 
             for node in root.iter("node"):
-                if (node.get("class") == "android.widget.Button" and 
-                    node.get("content-desc") == "Like"):
+                if (
+                    node.get("class") == "android.widget.Button"
+                    and node.get("content-desc") == "Like"
+                ):
                     like_bounds = parse_bounds(node.get("bounds"))
                     if like_bounds:
                         like_center = get_element_center(like_bounds)
@@ -253,17 +280,24 @@ class HingeAPI:
             if card_texts:
                 text_content = " | ".join(card_texts)
                 subject_id = f"text:{card_bounds}"
-                subject_pairs.append(SubjectPair(subject_id, text_content, closest_like, card_bounds))
+                subject_pairs.append(
+                    SubjectPair(subject_id, text_content, closest_like, card_bounds)
+                )
 
             for photo_node, photo_desc, photo_bounds in photo_nodes:
                 subject_id = f"{photo_desc}:{photo_bounds}"
-                subject_pairs.append(SubjectPair(subject_id, photo_desc, closest_like, photo_bounds))
+                subject_pairs.append(
+                    SubjectPair(subject_id, photo_desc, closest_like, photo_bounds)
+                )
 
         return subject_pairs
 
     def get_all_subjects(self):
         """Returns a list of all subjects with their content."""
-        return [(str(pair), pair.subject_content, pair.bounds) for pair in self.subject_pairs]
+        return [
+            (str(pair), pair.subject_content, pair.bounds)
+            for pair in self.subject_pairs
+        ]
 
     def get_profile_info(self) -> ProfileInfo:
         """Returns the profile information for the current page."""
@@ -306,45 +340,43 @@ class HingeAPI:
                 return False
         return False
 
-    def capture_subject_photo(self, subject_pair: SubjectPair, output_dir: str = "photo_dump") -> Optional[str]:
+    def capture_subject_photo(
+        self, subject_pair: SubjectPair, output_dir: str = "photo_dump"
+    ) -> Optional[str]:
         """Capture and save a photo of the subject."""
         if not subject_pair.bounds:
             print("No bounds available for photo capture")
             return None
-            
+
         try:
             # Create output directory if it doesn't exist
             os.makedirs(output_dir, exist_ok=True)
-            
+
             # Take full screenshot
             temp_screenshot = os.path.join(output_dir, "temp_screenshot.png")
             if not screenshot(temp_screenshot):
                 print("Failed to take screenshot")
                 return None
-                
+
             # Crop to subject bounds
             with Image.open(temp_screenshot) as img:
                 x1, y1, x2, y2 = subject_pair.bounds
                 cropped = img.crop((x1, y1, x2, y2))
-                
+
                 # Generate output filename with timestamp
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_filename = f"photo_{timestamp}.png"
                 output_path = os.path.join(output_dir, output_filename)
-                
+
                 # Save cropped image
                 cropped.save(output_path)
-                
+
             # Clean up temp file
             if os.path.exists(temp_screenshot):
                 os.remove(temp_screenshot)
-                
+
             return output_path
-            
+
         except Exception as e:
             print(f"Error capturing photo: {e}")
             return None
-
-    
-    
-    

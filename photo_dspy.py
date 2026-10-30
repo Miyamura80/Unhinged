@@ -22,7 +22,9 @@ image_paths = [
     "profile_photos/photo_2.png",
     "profile_photos/photo_3.png",
 ]
-image = [Image.open(path) for path in image_paths] # 'image' is now a list of PIL.Image objects
+image = [
+    Image.open(path) for path in image_paths
+]  # 'image' is now a list of PIL.Image objects
 
 # 5. Run inference
 result = count_people_module(image=image)

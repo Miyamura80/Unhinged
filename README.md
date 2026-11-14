@@ -80,7 +80,7 @@ graph TD
 
 ### Software Dependencies
 - **Python 3.12+**
-- **[uv](https://docs.astral.sh/uv/)** (>= 0.13.4) - Python package manager
+- **[uv](https://docs.astral.sh/uv/)** (>= 0.13.5) - Python package manager
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ```

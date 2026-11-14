@@ -13,7 +13,7 @@ PROJECT_ROOT=.
 # Check dependencies
 ########################################################
 
-UV_MIN_VERSION=0.13.4
+UV_MIN_VERSION=0.13.5
 
 check_uv:
 	@echo "$(YELLOW)🔍Checking uv version...$(RESET)"

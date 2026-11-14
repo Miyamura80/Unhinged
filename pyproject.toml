@@ -31,7 +31,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-required-version = ">=0.13.4"
+required-version = ">=0.13.5"
 
 [tool.hatch.metadata]
 allow-direct-references = true
